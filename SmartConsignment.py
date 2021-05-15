@@ -13,6 +13,8 @@ pUrl = 'https://raw.githubusercontent.com/rawsly/phbot-plugins/main/SmartConsign
 # ACTION CONSTANTS
 SELECT_CONS = ['0x7045', '24 02 00 00']
 ENTER_CONS = ['0x7046', '24 02 00 00 23']
+# CLOSE_SEARCH = ['0x7507']
+# CLOSE_CONSIGMENT = ['0x704B', '24 02 00 00']
 SEARCH_OPCODE = '0x750C'
 BUY_OPCODE = '0x750A'
 SEARCH_RESULT_OPCODE = '0xB50C'
@@ -52,22 +54,92 @@ JOB_UPGRADE = [SEARCH_OPCODE, "XX 00 3D 00 00 00 ** 00 00"] # job plus + blue
 JOB_ITEMS = [SEARCH_OPCODE, "XX 00 3E 00 00 00 00 00 00"] # stone, ticket etc.
 
 gui = QtBind.init(__name__, pName)
-QtBind.createButton(gui, 'onSearch', 'Search', 6, 100)
+
+
+
+# UI ELEMENTS
+searchBtn = QtBind.createButton(gui, 'onSearch', 'Search', 526, 20) # search button
+
+WINDOW_HEIGHT = 230
+WINDOW_WIDTH = 500
+WINDOW_LEFT_START = 100
+WINDOW_TOP_START = 50
+DROPDOWN_WIDTH = 150
+DROPDOWN_HEIGHT = 21
+UI_ELEMENTS_GAP = 10
+
+typeDropdown = QtBind.createCombobox(gui, WINDOW_LEFT_START, DROPDOWN_HEIGHT, DROPDOWN_WIDTH, DROPDOWN_HEIGHT) # type dropdown
+degreeDropdown = QtBind.createCombobox(gui, WINDOW_LEFT_START + DROPDOWN_WIDTH + UI_ELEMENTS_GAP, DROPDOWN_HEIGHT, DROPDOWN_WIDTH, DROPDOWN_HEIGHT) # degree dropdown
+
+ALL_DEGREES = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+JOB_DEGREES = ["1", "2", "3"]
+DEFAULT_DEGREES = ["1"]
+
+LAST_DROPDOWN_VALUE = 'Attribute Stone'
+
+SEPERATOR = '---'
+
+DROPDOWN_ITEMS = dict({
+	'Attribute Stone': ALCHEMY_ATTRIBUTE, 
+	'Alchemic Stone': ALCHEMY_ALCHEMIC,
+	'Elixir': ALCHEMY_ELIXIR,
+	'-1-': [],
+	'Necklace': CH_ACC_NECKLACE,
+	'Earring': CH_ACC_EARRING,
+	'Ring': CH_ACC_RING,
+	'-2-': [],
+	'Sword': CH_SWORD,
+	'Blade': CH_BLADE,
+	'Spear': CH_SPEAR,
+	'Glaive': CH_GLAIVE,
+	'Bow': CH_BOW,
+	'Shield': CH_SHIELD,
+	'-3-': [],
+	'Armor': CH_ARMOR,
+	'Protector': CH_PRO,
+	'Garment': CH_GARMENT,
+	'-4-': [],
+	'Job Weapon': JOB_WEAPON,
+	'Job Protector': JOB_PRO,
+	'Job Accessory': JOB_ACC,
+	'Job Upgrade': JOB_UPGRADE,
+	'Job Items': JOB_ITEMS
+})
+
+for key in DROPDOWN_ITEMS.keys():
+	if key.startswith('-'):
+		QtBind.append(gui, typeDropdown, SEPERATOR)
+	else:
+		QtBind.append(gui, typeDropdown, key)
+
+for degree in ALL_DEGREES:
+	QtBind.append(gui, degreeDropdown, degree)
+
+searchResults = QtBind.createList(gui, WINDOW_LEFT_START, WINDOW_TOP_START, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+# QtBind.setEnabled(gui, searchBtn, False)
+
 
 def onSearch():
-	select_consignment()
-	search_consignment()
-	# Timer(1.5, search_consignment, ()).start()
+	update_search_status(False)
+	log(str(NUMBER_OF_ATTEMPS))
+	if str(NUMBER_OF_ATTEMPS) == 'count(0)':
+		select_consignment()
+	Timer(1.5, search_consignment, ()).start()
+	Timer(1.5 + DURATION_TO_SEARCH_AGAIN_AS_SEC, update_search_status, [True]).start()
 
+def update_search_status(status):
+	QtBind.setEnabled(gui, searchBtn, status)
 
 def select_consignment():
-	custom_inject_joymax(SELECT_CONS)
-	#Timer(0.5, custom_inject_joymax, [SELECT_CONS]).start()
-	#Timer(1, custom_inject_joymax, [ENTER_CONS]).start()
-	custom_inject_joymax(ENTER_CONS)
+	Timer(0.5, custom_inject_joymax, [SELECT_CONS]).start()
+	Timer(1, custom_inject_joymax, [ENTER_CONS]).start()
 
 def search_consignment():
-	custom_inject_joymax(format_opcode_degree(ALCHEMY_ELIXIR))
+	typeValue = QtBind.text(gui, typeDropdown)
+	degreeValue = QtBind.text(gui, degreeDropdown)
+	if typeValue != SEPERATOR:
+		custom_inject_joymax(format_opcode_degree(DROPDOWN_ITEMS[typeValue], '{:02X}'.format(degreeValue)))
 
 
 def inject(strOpcode, strData, encrypted=False):
